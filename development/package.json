@@ -1,0 +1,12 @@
+{
+  "name": "just-dot-timer",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "test": "node tests/syntax.js && node tests/run-lua.js"
+  },
+  "devDependencies": {
+    "fengari-node-cli": "0.1.0",
+    "luaparse": "0.3.1"
+  }
+}

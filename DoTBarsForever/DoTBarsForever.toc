@@ -1,0 +1,17 @@
+## Interface: 16001
+## Title: DoT Bars Forever
+## Notes: Active damage-over-time timers for target, target of target, and focus.
+## Author: DoT Bars Forever contributors
+## Version: 0.2.0
+## IconTexture: Interface\AddOns\DoTBarsForever\Media\TimerBars.tga
+## SavedVariables: DoTBarsForeverProfiles
+## SavedVariablesPerCharacter: DoTBarsForeverDB
+## OptionalDeps: Blizzard_AuraContainer
+
+Locale.lua
+Data.lua
+Core.lua
+Bars.lua
+Launcher.lua
+SpellTray.lua
+Options.lua

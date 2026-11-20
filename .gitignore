@@ -1,0 +1,15 @@
+# Local tooling and caches
+development/node_modules/
+development/.npm-cache/
+development/dist/
+development/texture-work/
+
+# Personal or machine-specific files (never published)
+development/savedvars-backup/
+development/sab-issue-draft.md
+development/scripts/witchcraft-call.mjs
+docs/SESSION-HANDOFF.md
+docs/WITCHCRAFT.md
+
+# Built packages are published as GitHub releases, not committed
+releases/
