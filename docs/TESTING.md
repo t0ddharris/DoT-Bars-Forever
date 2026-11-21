@@ -26,7 +26,7 @@ Setup: Forever client build (from `/dotbars debug` or the login screen), DoT Bar
 | 18 | In combat, cast DoT A, then DoT B, then recast A | Stack order follows casts (A's bar moves to the end on recast); no "can't be reordered" message, no Lua error or blocked action |
 | 19 | Appearance > DoT colors: click a DoT's chip, pick a color; right-click it | Live bar and samples take the color; right-click restores the type color; picker vs. preset cycling noted |
 | 20 | Turn off Color DoTs by type | All bars use the Other DoTs color |
-| 23 | Warlock with Corruption, Bane of Agony, Immolate, Siphon Life | Shadow purple, curse crimson, fire orange, drain green |
+| 23 | Warlock with Corruption, Bane of Agony, Immolate, Siphon Life | Shadow purple, curse crimson, fire orange, drain green. **2026-11-20: Agony, Corruption and Immolate confirmed on live bars; Siphon Life seen only as an Appearance chip.** |
 | 24 | Hover and press each top tab and Stacked/Independent | Soft gold gradient on hover only; no native button border, glow or red outline |
 | 25 | Character previously on plain "Warlock" profile | After reload the footer and Profiles page read "Warlock - Tread"; "Warlock" remains in the list. **Passed in game 2026-11-20 (after the identity fallback fix).** |
 | 22 | Layout page: style Target, then Copy this layout to Focus, then to Both | Other units take the size, spacing, growth and mode at their own screen positions; refused in combat |

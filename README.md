@@ -2,6 +2,14 @@
 
 Clean, minimal bars for **your own damage-over-time spells** in **WoW Forever** (interface 16001), tracked separately on your target, your target's target, and your focus. Only DoTs that are actually ticking appear: no placeholders.
 
+<p align="center">
+  <img src="promo/screenshots/live-bars.png" alt="Bane of Agony, Corruption and Immolate bars above the player frame, colored crimson, purple and orange by DoT type" width="460">
+</p>
+
+<p align="center">
+  <img src="promo/screenshots/options-appearance.webp" alt="The options window on the Appearance tab: bar texture and font lists, per-DoT color chips and a style preview" width="760">
+</p>
+
 ## Features
 
 - **Class presets:** your class's DoTs are filled in automatically on first load, including all ranks. Add custom DoTs by aura ID.
@@ -21,7 +29,7 @@ Formerly named *Just DoT Timer*: if you used it, delete the old `JustDoTTimer` f
 
 ## Status
 
-Version 0.3.0. Lua syntax and 234 simulated assertions pass. The redesigned native UI and profile migration still need fresh in-game verification; earlier 0.2.0 gameplay observations remain historical.
+Version 0.3.0. Lua syntax and 256 simulated assertions pass. Confirmed in game: per-character profiles, colors by DoT type on live bars, and the Appearance tab. Tab hover and corner-grip scaling still need an in-game check.
 
 Live bars use the client's own duration fill. Because the game locks live aura bars to addon code, effects such as Smooth Animated Bars' liquid can't be applied to them, and style changes reach a live bar when its DoT ends ([details](docs/GUIDE.md)).
 
