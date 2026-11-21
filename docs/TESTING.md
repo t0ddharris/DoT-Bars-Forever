@@ -1,4 +1,4 @@
-# In-game acceptance checklist (0.2.0)
+# In-game acceptance checklist (0.2.1)
 
 Status: **partly run in game** (see the results logs below). Testing used Witchcraft, a connected-client bridge, with the user performing gameplay.
 
@@ -12,7 +12,7 @@ Setup: Forever client build (from `/dotbars debug` or the login screen), DoT Bar
 | 4 | Switch to an undotted target, clear target, reacquire | No previous target's bars persist |
 | 5 | Set focus; target a unit with its own target | target, targettarget and focus each show only their own DoTs |
 | 6 | Outside editing | No placeholder or empty bars anywhere |
-| 7 | Appearance: pick each of Flat, Classic, Raid and Skill | Swatches, options preview, layout samples and live bars all show that texture; none is blank or missing |
+| 7 | Appearance: pick each of Flat, Classic, Raid, Skill, Smooth, Glass and Gloss | Swatches, options preview, layout samples and live bars all show that texture; none is blank or missing |
 | 8 | Minimap button: left-click, right-click, drag, then click again | Opens options; toggles editing; position persists; first click after a drag still works |
 | 9 | Spell tray: drag a spell onto the screen; click another; resize one | Bars land at drop/default positions; size and position persist after `/reload` |
 | 10 | Grow upward on/off for a stacked unit | Stack builds up or down from its anchor |
@@ -24,8 +24,11 @@ Setup: Forever client build (from `/dotbars debug` or the login screen), DoT Bar
 | 16 | Change the texture right after combat while a DoT is still up | No Lua error; that bar switches within about a second of the DoT ending |
 | 17 | Stacked: two DoTs of different schools on one target | Each bar in its school color; no empty gap between bars; no gap where an untracked/inactive DoT's group sits |
 | 18 | In combat, cast DoT A, then DoT B, then recast A | Stack order follows casts (A's bar moves to the end on recast); no "can't be reordered" message, no Lua error or blocked action |
-| 19 | Spells page: click a DoT's swatch, pick a color; right-click it | Live bar and samples take the color; right-click restores the school color; picker vs. preset cycling noted |
-| 20 | Turn off Color DoTs by spell school | All bars use the bar color |
+| 19 | Appearance > DoT colors: click a DoT's chip, pick a color; right-click it | Live bar and samples take the color; right-click restores the type color; picker vs. preset cycling noted |
+| 20 | Turn off Color DoTs by type | All bars use the Other DoTs color |
+| 23 | Warlock with Corruption, Bane of Agony, Immolate, Siphon Life | Shadow purple, curse crimson, fire orange, drain green |
+| 24 | Hover and press each top tab and Stacked/Independent | Soft gold gradient on hover only; no native button border, glow or red outline |
+| 25 | Character previously on plain "Warlock" profile | After reload the footer and Profiles page read "Warlock - Tread"; "Warlock" remains in the list. **Passed in game 2026-11-20 (after the identity fallback fix).** |
 | 22 | Layout page: style Target, then Copy this layout to Focus, then to Both | Other units take the size, spacing, growth and mode at their own screen positions; refused in combat |
 | 21 | Pick a bar font (built-in and a SharedMedia one) and change text size | Samples change at once; live bars change when their DoT ends; `/dotbars debug` shows how many bars are waiting |
 
@@ -60,3 +63,33 @@ Witchcraft: after each reproduction, read `wow_get_errors` and compare timestamp
 | Popup taint | **Fail, fixed (re-check pending)** | 2026-11-17 ~22:15: accepting WoW's "allow scripts" prompt for `/run` raised `ADDON_ACTION_FORBIDDEN`, with `SetAllowDangerousScripts()` blamed on DoTBarsForever. The cause was `SpellTray.lua` writing `StaticPopupDialogs` and calling `StaticPopup_Show`, which tainted Blizzard's shared popups. It is replaced by the addon's own confirmation window (`DoTBarsForeverConfirm`); tests assert that DoT Bars Forever never touches `StaticPopupDialogs`. |
 
 Smooth Animated Bars support was removed on 2026-11-17; the rows above that mention it are history.
+
+
+## 0.2.1 review fixes — 2026-11-20
+
+Lua syntax and 211 simulated assertions pass. New regression coverage: removed custom groups, profile switches, preserved manual geometry, scoped arrangement, stale reset confirmation, screen fit, scroll clamp, resize grip and window-size persistence. This is not an in-game pass. Witchcraft reports disconnected with missing error data; no fresh screenshot or runtime evidence was available.
+
+All checks below remain **not run in game**:
+
+- Resize from the lower-right corner; release outside the grip; close/reopen and reload. Verify dimensions persist and no content overlaps.
+- Test narrow/short screens and changed UI scale; scroll to every page control and the preview. Test nested spell/media list scrolling and mouse hit regions.
+- Remove an active custom DoT and switch to a profile without it: its stacked bar disappears.
+- Move and resize independent bars on all three units; add/remove/reorder/re-enable tray spells: existing geometry stays unchanged. Confirm Arrange affects only the selected unit, with both growth directions.
+- Open a profile-reset confirmation, switch profiles, then accept: the new profile remains unchanged.
+- Inspect selected-unit highlighting, long spell/media names and their tooltips, and the shared-profile banner.
+- Check seven built-in textures, existing saved layouts, combat deferral, and native fills.
+- Controller acquisition, focus, navigation, scrolling and activation are unverified; dragging/resizing requires pointer input.
+
+### 0.2.1 resize-tooltip hotfix
+
+User observed Options.lua:12 rejecting a boolean in SetText argument 5 when hovering the resize grip. Fixed by passing numeric alpha before wrap. Canonical plugin 2.8.0 Forever FrameAPITooltip:SetText declaration (1.60.1.70938, bebcb6bf309cf41b41bd74f8ca651e6a105b2676) confirms argument order. Added a strict tooltip regression. User runtime traceback confirms the original failure; fixed behavior awaits reload and re-test.
+
+
+## 0.3.0 approved redesign — implementation checkpoint
+
+Seven Lua 5.1 syntax checks and 252 simulated assertions pass. Regression coverage includes class-character copies, two same-class characters, realm/name collisions without overwrites, repeated login, legacy recovery, explicit shared/custom profiles, preserved geometry, full-window scaling, anchored diagonal grip drag, release outside the grip, header slider removal, flat tab artwork, type colors, Appearance color chips, stale 0.3.0 migration flag, per-character persistence and screen-fit restoration.
+
+Native visual acceptance is **not run**: computer-use tools are unavailable in this session, and Witchcraft reports disconnected/missing error data. The generated approved mock-up is not evidence of runtime rendering. After reload: inspect all five tabs against the approved artwork; hover tooltip; drag the grip larger/smaller and release outside; numeric entries and nested list scrolling; switch units and check copy destination names; inspect Stacked/Independent controls; confirm the migrated character profile and preserved bars; reload again for persistence. Do not destructively test profile resets on the user's layout.
+
+## 0.3.0 grip stability hotfix
+User reported excessive sensitivity and window jumping. Window movement now belongs only to the title hit area; grip consumes its own drag. Automatic screen clamping is disabled during scaling and restored on release; maximum scale respects space from the fixed top-left anchor, and cursor conversion uses the parent scale captured at drag start. 234 simulated assertions pass, including no ancestor drag, stationary-pointer stability and no anchor drift. Live retest after reload remains pending.

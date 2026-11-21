@@ -1,16 +1,16 @@
 # DoT Bars Forever
 
-A standalone WoW Forever addon for active damage-over-time bars. Interface **16001**, Lua **5.1**. No addon libraries required. Version 0.2.0 passes local syntax and simulated tests; in-game verification is pending (see [TESTING.md](TESTING.md)).
+A standalone WoW Forever addon for active damage-over-time bars. Interface **16001**, Lua **5.1**. No addon libraries required. Version 0.3.0 passes local syntax and simulated tests. Earlier 0.2.0 behavior has partial in-game evidence; the 0.3.0 changes need fresh verification (see [TESTING.md](TESTING.md)).
 
 ## Install
 
-Extract [DoTBarsForever-0.2.0.zip](../releases/DoTBarsForever-0.2.0.zip) into:
+Extract [DoTBarsForever-0.3.0.zip](../releases/DoTBarsForever-0.3.0.zip) into:
 
 ```text
 World of Warcraft/_forever_/Interface/AddOns/
 ```
 
-The resulting file must be `AddOns/DoTBarsForever/DoTBarsForever.toc`. Restart the game after installing a new addon folder or after an update adds files (0.2.0 adds `Locale.lua`, `Launcher.lua` and `SpellTray.lua`). Enable DoT Bars Forever in the AddOns list. Existing 0.1.0 settings are kept.
+The resulting file must be `AddOns/DoTBarsForever/DoTBarsForever.toc`. Restart the game after installing a new addon folder or after an update adds files (0.2.0 adds `Locale.lua`, `Launcher.lua` and `SpellTray.lua`). Enable DoT Bars Forever in the AddOns list. Existing DoTBarsForever settings are kept; the older addon name requires manual migration (see Renamed below).
 
 ## Use
 
@@ -20,7 +20,7 @@ The resulting file must be `AddOns/DoTBarsForever/DoTBarsForever.toc`. Restart t
 - `/dotbars reset`: restore all unit positions and sizes; keep selected/custom spells.
 - `/dotbars debug`: print the interface number and aura-engine availability.
 
-**Tracking** enables target, target of target (`targettarget`), and focus independently. Each container follows only that unit token. By default, only your own DoTs appear. Nothing is shown for a unit unless it has an active matching DoT: there are no placeholder bars in normal play.
+**Tracking** enables target, target of target (`targettarget`), and focus independently. Each container follows only that unit token. Only your own DoTs appear. Nothing is shown for a unit unless it has an active matching DoT: there are no placeholder bars in normal play.
 
 **Spells** starts with your class's damaging spell families from Dyre's reference data, including rank IDs. Uncheck any unwanted spell. The catalog covers Warlock, Priest, Druid, Hunter, Mage, Rogue, Shaman and Warrior; Paladins start with an empty list. It is a starter catalog, not a claim of exhaustive Forever spell coverage.
 
@@ -31,7 +31,7 @@ For a custom DoT, enter the **aura/debuff ID** (or comma-separated IDs for its r
 - Drag a spell from your spellbook or an action bar onto a slot, or click a slot while holding one. Dropping on the tray background fills the next empty slot.
 - Below the slots, your class DoTs that are not slotted yet can be dragged into a slot or clicked to fill the next one.
 - Drag between slots to reorder. Right-click a slot to remove that DoT.
-- **Slot 1 is the top bar** for units using independent placement. Changing slots re-stacks independent bars in slot order from the unit anchor (upward when Grow upward is on); fine-tune them afterwards with the layout handles. Stacked layouts show active DoTs in the order the game applies them, which the addon cannot reorder.
+- Slot edits preserve existing independent positions and sizes, including re-enabled spells. New bars are placed beyond existing active positions in the selected growth direction. To rearrange, use **Layout > Arrange by slot order** and confirm. This affects only the selected unit: slot 1 starts at its anchor, with following slots above or below it according to Grow upward. Stacked bars follow cast order when available, with slot order as fallback.
 
 A spell taken off an action bar leaves that bar, so it stays on your cursor after the drop for you to put back; a spellbook drag is cleared. Macros and items are refused and never cleared. A spell not in your list asks before it is added as a custom DoT. Some debuffs use a different ID from the spell you cast; if no bar appears, add the debuff ID on the Spells page. Slot changes are refused in combat, and the tray closes when combat starts.
 
@@ -40,7 +40,7 @@ A spell taken off an action bar leaves that bar, so it stays on your cursor afte
 - **Stacked**: the client's aura layout packs only active DoTs. Width, height and spacing are configurable; **Grow upward** makes the stack build up from its anchor instead of down. Each DoT has its own group in the stack (so each bar's color is known), and groups are ordered by **cast order**: when you cast a tracked DoT, its bar moves to the end of the stack. DoTs not cast yet this session keep spell tray slot order. If the game ever refuses the reorder, a chat message says so and stacks keep slot order.
 - **Independent**: each spell has its own position and size. Inactive spells are invisible in normal play.
 
-While editing, each layout handle shows an animated sample bar that counts down, and a native corner grip resizes it. Handles and samples disappear on entering combat. Changes made during combat are saved and applied after combat. Settings are stored per character.
+While editing, each layout handle shows an animated sample bar that counts down, and a native corner grip resizes it. Handles and samples disappear on entering combat. Changes made during combat are saved and applied after combat. Settings are stored in shared profiles; the selected profile and options-window scale are stored per character.
 
 **Copy a layout:** on the Layout page, choose the unit whose layout you like, then use **Copy this layout to:** with one of the other units, or **Both**. It copies bar width, height, spacing, grow direction, stacked or independent mode, and each independent bar's size and arrangement. Each unit keeps its own screen position: independent bars keep their offsets from the source unit's anchor, placed around the target unit's anchor. Copying is refused in combat.
 
@@ -48,19 +48,25 @@ While editing, each layout handle shows an animated sample bar that counts down,
 
 **General** has Enable timers (uncheck to hide all live timers without losing your setup), Show minimap button, and which units to watch. DoT Bars Forever always shows only your own DoTs; the old "Only my DoTs" option was removed.
 
+## Options window
+
+The five top tabs are General, Spells, Layout, Appearance and Profiles. Drag the lower-right corner to scale the entire window, including text and frame, while preserving proportions. Preferred scale is saved per character, independent of profiles and timer dimensions. Smaller screens temporarily limit the displayed scale; returning to a larger screen restores the preference. Only lists scroll internally. The footer shows Edit layout, the active profile and Close.
+
+Layout groups placement, dimensions/spacing and copying. Width and height have sliders and numeric entry; Enter applies a number and Escape discards it. Independent mode shows resize guidance and Arrange by slot order instead. Copy destination offers either other unit or Both. Reset this layout asks before replacing the selected unit geometry and preserves its tracking-enabled state. Appearance owns the synthetic preview.
+
 ## Profiles
 
-All settings (spells and slots, colors, layout, look) live in a **profile**. Profiles are account-wide (`DoTBarsForeverProfiles`); each character remembers which one it uses (`DoTBarsForeverDB.profile`).
+All addon settings (spells and slots, colors, layout, look) live in a **profile**. Profiles are account-wide (`DoTBarsForeverProfiles`); each character remembers which one it uses (`DoTBarsForeverDB.profile`).
 
-- **First load:** a character goes on the profile named after its class (for example "Warlock"), created with that class's DoTs filled in. Other characters of the same class join the same profile unless you switch them.
-- **Upgrading:** an existing character's settings become its class profile, or a "Name - Realm" profile if another character already filled the class one. Nothing is lost.
-- **05 Profiles page:** click a profile to use it; create a new one by name, either from class defaults or as a copy of the current profile; **Reset current profile** returns it to class defaults; **Delete** removes another profile. Reset and delete ask first in the addon's own window (it never uses Blizzard's shared popups, which taints them). Profile changes are refused in combat.
+- **First load:** each character gets a class-character profile, such as "Warlock - Tread". Same-name collisions add the realm, then a numeric suffix if needed. Existing profile names are never overwritten.
+- **Upgrading:** the old automatic class profile is deep-copied once for each character on login. The source remains available for other characters to migrate. Existing custom profile selections stay selected. A per-character migration marker prevents later logins from overwriting changes; selecting a shared profile explicitly remains supported. Legacy settings stay as a recovery copy.
+- **Profiles tab:** click a profile to use it; create a new one by name, either from class defaults or as a copy of the current profile; **Reset current profile** returns it to class defaults; **Delete** removes another profile. Reset and delete ask first in the addon's own window (it never uses Blizzard's shared popups, which taints them). Profile changes are refused in combat.
 
 **Renamed (2026-11-20):** formerly Just DoT Timer. The addon is now **DoT Bars Forever**: folder `DoTBarsForever`, saved variables `DoTBarsForeverDB` (per character) and `DoTBarsForeverProfiles` (account). The game treats a renamed folder as a new addon, so settings saved by Just DoT Timer do not carry over automatically: delete the old `JustDoTTimer` folder and set DoT Bars Forever up again (slash command `/dotbars`). The developer's own saves were converted by hand.
 
 ## DoT colors
 
-With **Color DoTs by spell school** on (the default), each DoT's bar takes its school's color: shadow purple, fire orange, nature green, arcane pink, frost blue, holy gold, physical red. Off, every bar uses the chosen bar color. On the **Spells** page, each DoT has a color swatch: click it to pick a color for that DoT, right-click to return to its default. The game's color picker is used when the client offers its setup call; otherwise each click cycles through the school and bar colors. Custom spells have no known school, so they use the bar color until given one.
+With **Color DoTs by type** on (the default), each DoT's bar takes its type color: curses and banes (Bane of Agony, Bane of Doom, and custom spells named "Curse of ..." or "Bane of ...") crimson, life drains (Siphon Life, Devouring Plague) green, and otherwise its spell school: shadow purple, fire orange, nature green, arcane pink, frost blue, holy gold, physical red. Off, every bar uses the **Other DoTs** color. On the **Appearance** page, **DoT colors** shows a chip for each DoT: click it to pick a color for that DoT, right-click to return to its type color. The game's color picker is used when the client offers its setup call; otherwise each click cycles through the preset colors. Other custom spells have no known type, so they use the Other DoTs color until given one.
 
 How it works within the client's rules: the spell on a live bar is secret to addon code, so a bar can't be recolored after looking at its aura. Instead, the stacked layout uses **one aura group per DoT** in a shared flow layout (`AddAuraGroup` with `layoutIndex`, `forceNewLine` and `groupLineSpacing`), and each group's buttons only ever show that DoT. Its color is set when the bar is created. Independent placement already has one slot per DoT. Cast order comes from the player's own `UNIT_SPELLCAST_SUCCEEDED` events (ignored when the spell ID is secret), which update each group's `layoutIndex`. The school table and colors are this addon's own; True Colors Forever (cast bars by school) inspired the idea, but none of its data was copied.
 

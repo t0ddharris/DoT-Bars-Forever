@@ -1,22 +1,23 @@
-# Revision checkpoint (0.2.0)
+# DoT Bars Forever implementation matrix
 
-No Git checkout exists in this workspace. Working files are under `DoTBarsForever/`; the 0.1.0 ZIP and extracted copy are retained in `releases/`.
+Current local version: 0.2.1. Repository: https://github.com/t0ddharris/DoT-Bars-Forever . This working update has not been published.
 
-| Requirements | Work | State | Evidence |
-|---|---|---|---|
-| 01,02 | Native live timers; SAB removed from restricted aura ancestry | Implemented; in-game pending | User traceback; pinned Blizzard `SetTimerDuration` binding; tests assert SAB never receives a live bar |
-| 01,02b | Live liquid via mirror relay | **Ruled out in game, removed** | 2026-11-17: `GetMinMaxValues` on the live bar raised "forbidden object" with a DoT shown; tests assert no live bar (stacked or independent) reaches SAB |
-| 11 | Bar textures (Flat/Classic/Raid/Skill), SAB removed (option, preview hook, OptionalDeps, old `liquid` settings dropped); locked-bar restyle retry | Implemented; in-game pending | Tests: texture default, live and sample follow the choice, locked bar retried via `C_Timer.After`, saved value clamped, old setting dropped |
-| 03,04 | Animated synthetic samples; native size-grabber texture replaces slash text | Implemented; in-game pending | Tests: preview value decreases; SAB attaches only to `dbfPreview` bars |
-| 05 | Minimap button (options, layout edit, drag angle, hide setting) | Implemented; in-game pending | Tests: visibility setting, click-after-drag handling |
-| 06 | Spell tray popup with drag and click placement | Implemented; in-game pending | Tests: placement, combat refusal, open tray refreshes when spells change, click-after-drag handling |
-| 07 | Up/down stack growth | Implemented; in-game pending | Tests: flow direction and anchor |
-| 08 | SAB/Forever-inspired native styling | Implemented; visual check pending | Native templates; `STANDARD_TEXT_FONT` with FRIZQT fallback |
-| 09 | Settings entry, English catalog, controller assessment | Implemented (English only) | `Locale.lua`; controller support not claimed |
-| 10 | Folder convention, saved-data migration, versioned packaging | Implemented | `package.ps1` reads the TOC version; 0.1.0 artifacts preserved |
+| Requirements | Implementation | Verification |
+|---|---|---|
+| 01–02 | Native aura containers and duration fills; no external live-bar renderer | Prior partial 0.2.0 in-game evidence in TESTING.md; retained simulated coverage |
+| 03–08, 11 | Separate samples, movable bars, minimap, spell tray, growth, native shell, seven textures | Simulated; historical in-game results and outstanding checks in TESTING.md |
+| 09 | Settings entry and English fallback; controller assessment | No controller support claim; hardware/navigation not tested |
+| 10 | Shared profiles and saved layout preservation; versioned ZIP | Existing migrations retained; packaging inspected |
+| 12 | Disable groups absent from current catalog/selection | Regression checks for deletion, re-add and profile switch pass |
+| 13 | Tray edits keep geometry; explicit confirmed Arrange per unit | Add/remove/reorder/re-enable and combat-refusal regressions pass |
+| 14 | Reset captures profile name and table identity | Stale confirmation rejected; valid reset passes |
+| 15 | Adaptive options with lower-right grip, scrolling and saved size | Simulated fit at narrow/short dimensions, resize lifecycle and scroll-clamp checks pass; visual acceptance pending |
+| 16 | Selected-unit highlight, shared-profile banner, bounded names/tooltips, mode-aware controls | Implemented; in-game visual/interaction checks pending |
 
-Test evidence: `npm --prefix development test` — Lua 5.1 syntax for all 7 files and 145 simulated assertions. The runner fails unless an explicit `PASS` line is printed and no traceback/error appears, because fengari can exit 0 after a Lua runtime error.
+Validation: npm --prefix development test — seven Lua 5.1 syntax checks and 211 simulated assertions. Simulated tests do not establish real-client behavior. Witchcraft was disconnected and supplied no error data during this work; the new UI has not been visually verified. See REQUIREMENTS.md for the source pin and TESTING.md for the remaining acceptance checks.
 
-Runtime testing: Witchcraft 0.2.0 installed and configured (see local developer notes (local developer notes, not published)); real-client checks in [TESTING.md](TESTING.md) **not yet run**.
 
-Known limitation: live liquid animation is **not** supported. Smooth Animated Bars support was removed on 2026-11-17 (see GUIDE.md).
+## Approved redesign implementation (2026-11-20)
+REQ-17: approved native metal/charcoal shell, top tabs, grouped Layout controls, Appearance-only preview and persistent footer. REQ-18: fixed logical dimensions; slider and corner grip scale the entire frame, retaining top-left anchor, per-character preference and screen fit. REQ-19: one-time class-character copies, preserving source/custom profiles and manual geometry, realm collision handling and explicit sharing. In progress; native visual acceptance pending. Controller grip remains pointer-based; directional navigation unverified. English localization and Settings entry retained.
+
+REQ-17–19 implementation complete in 0.3.0; 229 simulated assertions pass. Native visual, controller and gameplay acceptance remain pending. No change to the restricted live-bar renderer.

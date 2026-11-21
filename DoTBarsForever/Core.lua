@@ -90,47 +90,97 @@ function ns.InitializeDB(saved)
     return db
 end
 
--- Profiles. Every setting lives in a named profile in the account-wide
--- DoTBarsForeverProfiles; each character remembers its profile name in DoTBarsForeverDB.
--- A character without one gets the profile named after its class (created with that
--- class's DoTs on first load), so characters of one class share a setup by default.
+-- Account-wide profiles, with a separate automatic default for each character.
 local function ClassProfileName()
-    local localized = UnitClass and UnitClass("player")
-    if type(localized) == "string" and not ns.Secret(localized) and localized ~= "" then return localized end
+    local name = UnitClass and UnitClass("player")
+    if type(name) == "string" and not ns.Secret(name) and name ~= "" then return name end
     return L.PROFILE_DEFAULT
 end
 
-local function CharacterName()
-    local name = UnitName and UnitName("player")
-    local realm = GetRealmName and GetRealmName()
-    if type(name) ~= "string" or ns.Secret(name) then return L.PROFILE_DEFAULT end
-    if type(realm) == "string" and not ns.Secret(realm) and realm ~= "" then return name .. " - " .. realm end
-    return name
+-- Forever declares UnitName secret while unit-name identity is restricted, so several
+-- sources are tried in turn. Each result is recorded for /dotbars debug.
+local function Readable(value)
+    return not ns.Secret(value) and type(value) == "string" and value ~= "" and value or nil
+end
+
+local function FirstReadable(sources, status)
+    for _, source in ipairs(sources) do
+        local fn = source[2]
+        local ok, value = false, nil
+        if type(fn) == "function" then ok, value = pcall(fn) end
+        local result = not ok and "error" or ns.Secret(value) and "secret" or Readable(value) and "ok" or "empty"
+        status[#status + 1] = source[1] .. "=" .. result
+        if result == "ok" then return value end
+    end
+end
+
+local function CharacterIdentity()
+    local status = {}
+    local name = FirstReadable({
+        {"UnitName", UnitName and function() return (UnitName("player")) end},
+        {"UnitFullName", UnitFullName and function() return (UnitFullName("player")) end},
+        {"GetUnitName", GetUnitName and function() return GetUnitName("player", false) end},
+        {"GUID", UnitGUID and GetPlayerInfoByGUID and function()
+            local guid = UnitGUID("player")
+            if ns.Secret(guid) then return guid end
+            return select(6, GetPlayerInfoByGUID(guid))
+        end},
+    }, status)
+    local realm = FirstReadable({
+        {"GetRealmName", GetRealmName},
+        {"GetNormalizedRealmName", GetNormalizedRealmName},
+        {"UnitFullNameRealm", UnitFullName and function() return select(2, UnitFullName("player")) end},
+    }, status)
+    ns.identityStatus = table.concat(status, ", ")
+    if not name or not realm then return end
+    return name, realm, name .. " - " .. realm
+end
+
+-- True while this character still uses the class profile awaiting its personal copy.
+function ns.MigrationPending()
+    local charDB = ns.charDB
+    return type(charDB) == "table" and (tonumber(charDB.profileMigration) or 0) < 2
+        and charDB.profile == ClassProfileName()
 end
 
 function ns.ResolveProfiles(charDB, store)
     store = type(store) == "table" and store or {}
     store.profiles = type(store.profiles) == "table" and store.profiles or {}
+    store.profileOwners = type(store.profileOwners) == "table" and store.profileOwners or {}
     for name, profile in pairs(store.profiles) do
         if type(name) ~= "string" or type(profile) ~= "table" then store.profiles[name] = nil end
     end
     charDB = type(charDB) == "table" and charDB or {}
-    if charDB.groups and not (type(charDB.profile) == "string" and store.profiles[charDB.profile]) then
-        -- Saved before profiles existed: this character's settings become a profile,
-        -- named after the class unless another character already took that name.
-        -- The old settings are copied, not moved: if the account-wide profile store is
-        -- not saved yet (the game reads a new SavedVariables line only on a full
-        -- restart), the next load simply migrates again and nothing is lost.
-        local name = ClassProfileName()
-        if store.profiles[name] then name = CharacterName() end
-        local settings = {}
-        for k, v in pairs(charDB) do if k ~= "profile" then settings[k] = ns.Copy(v) end end
-        store.profiles[name] = settings
-        charDB.profile = name
-    end
-    if type(charDB.profile) ~= "string" or not store.profiles[charDB.profile] then
-        charDB.profile = ClassProfileName()
-        store.profiles[charDB.profile] = store.profiles[charDB.profile] or {}
+    local className = ClassProfileName()
+    local name, realm, owner = CharacterIdentity()
+    local selected = type(charDB.profile) == "string" and store.profiles[charDB.profile]
+    -- Version 2: some 0.3.0 saves were marked migrated while still on the class profile.
+    local needsPersonal = not selected or ((tonumber(charDB.profileMigration) or 0) < 2 and charDB.profile == className)
+    if needsPersonal and owner then
+        local source = selected
+        if not source and type(charDB.groups) == "table" then
+            source = {}
+            for key in pairs(ns.Defaults()) do source[key] = ns.Copy(charDB[key]) end
+        end
+        source = source or store.profiles[className] or {}
+        local base = className .. " - " .. name
+        local chosen = base
+        local function Occupied(key)
+            return store.profiles[key] and store.profileOwners[key] ~= owner
+        end
+        if Occupied(chosen) then chosen = base .. " - " .. realm end
+        local qualified, suffix = chosen, 2
+        while Occupied(chosen) do chosen = qualified .. " (" .. suffix .. ")"; suffix = suffix + 1 end
+        if not store.profiles[chosen] then store.profiles[chosen] = ns.Copy(source) end
+        store.profileOwners[chosen] = owner
+        charDB.profile = chosen
+        charDB.profileMigration = 2
+    elseif selected then
+        if owner then charDB.profileMigration = 2 end
+    else
+        -- Identity can be unavailable at ADDON_LOADED. Retry at PLAYER_LOGIN.
+        charDB.profile = className
+        store.profiles[className] = store.profiles[className] or ns.Copy(charDB.groups and charDB or {})
     end
     ns.charDB, ns.profileStore = charDB, store
     ns.db = ns.InitializeDB(store.profiles[charDB.profile])
@@ -158,6 +208,7 @@ function ns.UseProfile(name)
     local profile = ns.profileStore.profiles[name]
     if not profile then return false end
     ns.charDB.profile = name
+    ns.charDB.profileMigration = 2 -- explicit sharing stays selected
     ns.db = ns.InitializeDB(profile)
     Switched()
     ns.Report(string.format(L.PROFILE_NOW_USING, name))
@@ -176,9 +227,13 @@ function ns.CreateProfile(name, copyCurrent)
 end
 
 -- Back to this class's defaults: every class DoT on, default layout and look.
-function ns.ResetProfile()
+function ns.ResetProfile(expectedName, expectedProfile)
     if InCombatLockdown() then ns.Report(L.FINISH_COMBAT_BEFORE_CHANGING_PROFILES); return false end
     local name = ns.CurrentProfile()
+    if expectedName and (name ~= expectedName or ns.db ~= expectedProfile) then
+        ns.Report(L.PROFILE_RESET_CHANGED)
+        return false
+    end
     ns.db = ns.InitializeDB({})
     ns.profileStore.profiles[name] = ns.db
     Switched()
@@ -190,6 +245,7 @@ function ns.DeleteProfile(name)
     if InCombatLockdown() then ns.Report(L.FINISH_COMBAT_BEFORE_CHANGING_PROFILES); return false end
     if name == ns.CurrentProfile() or not ns.profileStore.profiles[name] then return false end
     ns.profileStore.profiles[name] = nil
+    ns.profileStore.profileOwners[name] = nil
     if ns.RefreshOptions then ns.RefreshOptions() end
     ns.Report(string.format(L.PROFILE_DELETED, name))
     return true
@@ -226,12 +282,21 @@ function ns.EntryForSpell(id)
     end
 end
 
--- A DoT's bar color: the player's override, else its school (when on), else the bar color.
+-- What a DoT does decides its default color: curse, drain, else its spell school.
+function ns.EntryKind(entry)
+    if not entry then return end
+    local kind = ns.dotKinds[entry.key] or ns.dotSchools[entry.key]
+    if kind then return kind end
+    local name = type(entry.name) == "string" and entry.name or ""
+    if name:match("^Curse of ") or name:match("^Bane of ") then return "curse" end
+end
+
+-- A DoT's bar color: the player's override, else its type (when on), else the bar color.
 function ns.EntryColor(entry)
     local custom = entry and ns.db.spellColors[entry.key]
     if custom then return custom[1], custom[2], custom[3] end
-    local school = entry and ns.db.colorBySchool and ns.schoolColors[ns.dotSchools[entry.key] or ""]
-    if school then return school[1], school[2], school[3] end
+    local kind = ns.db.colorBySchool and ns.schoolColors[ns.EntryKind(entry) or ""]
+    if kind then return kind[1], kind[2], kind[3] end
     local c = ns.colors[ns.db.color]
     return c[1], c[2], c[3]
 end
@@ -292,10 +357,11 @@ function ns.SlotSize(g, except)
     return g.width, g.height
 end
 
-function ns.ArrangeBySlots()
+function ns.ArrangeBySlots(selectedUnit)
+    if InCombatLockdown() then ns.Report(L.FINISH_COMBAT_BEFORE_EDITING_THE_LAYOUT); return false end
     for _, unit in ipairs(ns.units) do
         local g = ns.db.groups[unit]
-        if g.free then
+        if g.free and (not selectedUnit or selectedUnit == unit) then
             local width, height = ns.SlotSize(g)
             local dir, center, lastHalf = g.growUp and 1 or -1, g.y, nil
             for _, entry in ipairs(ns.OrderedEntries()) do
@@ -308,23 +374,19 @@ function ns.ArrangeBySlots()
             end
         end
     end
+    return true
 end
 
 function ns.SetSlot(key, index)
     if InCombatLockdown() then return false end
-    local keys, wasSlotted = {}, false
+    local keys = {}
     for _, entry in ipairs(ns.OrderedEntries()) do
-        if entry.key ~= key then keys[#keys + 1] = entry.key else wasSlotted = true end
+        if entry.key ~= key then keys[#keys + 1] = entry.key end
     end
     ns.db.disabled[key] = nil
-    if not wasSlotted then
-        -- Newly slotted: forget any stale size so it matches the bars already shown.
-        for _, unit in ipairs(ns.units) do ns.db.groups[unit].spells[key] = nil end
-    end
     index = math.max(1, math.min(index or #keys + 1, #keys + 1))
     table.insert(keys, index, key)
     ns.db.order = keys
-    ns.ArrangeBySlots()
     ns.Apply()
     return true
 end
@@ -332,7 +394,6 @@ end
 function ns.ClearSlot(key)
     if InCombatLockdown() then return false end
     ns.db.disabled[key] = true
-    ns.ArrangeBySlots()
     ns.Apply()
     return true
 end
@@ -470,6 +531,7 @@ function events.ADDON_LOADED(_, name)
     DoTBarsForeverDB, DoTBarsForeverProfiles = ns.ResolveProfiles(DoTBarsForeverDB, DoTBarsForeverProfiles)
 end
 function events.PLAYER_LOGIN()
+    DoTBarsForeverDB, DoTBarsForeverProfiles = ns.ResolveProfiles(DoTBarsForeverDB, DoTBarsForeverProfiles)
     local _, class = UnitClass("player")
     ns.class = not ns.Secret(class) and class or "UNKNOWN"
     ns.RefreshSpellbook()
@@ -493,7 +555,16 @@ end
 function events.SPELLS_CHANGED()
     if ns.ready then ns.RefreshSpellbook(); ns.Apply() end
 end
-function events.PLAYER_ENTERING_WORLD() if ns.ready then ns.RefreshUnits() end end
+function events.PLAYER_ENTERING_WORLD()
+    if not ns.ready then return end
+    -- Identity can still be restricted at PLAYER_LOGIN; retry the one-time copy here.
+    if ns.MigrationPending() and not InCombatLockdown() then
+        DoTBarsForeverDB, DoTBarsForeverProfiles = ns.ResolveProfiles(DoTBarsForeverDB, DoTBarsForeverProfiles)
+        ns.Apply()
+        if ns.RefreshOptions then ns.RefreshOptions() end
+    end
+    ns.RefreshUnits()
+end
 function events.PLAYER_TARGET_CHANGED() if ns.ready then ns.RefreshUnits() end end
 function events.PLAYER_FOCUS_CHANGED() if ns.ready then ns.RefreshUnits() end end
 function events.UNIT_TARGET(_, unit)
@@ -529,5 +600,7 @@ SlashCmdList.DOTBARS = function(message)
         ns.Report("Interface " .. tostring(select(4, GetBuildInfo())) .. "; engine: " .. (ns.engineStatus or L.NOT_STARTED))
         ns.Report(string.format(L.DEBUG_STATUS, ns.PendingRestyles and ns.PendingRestyles() or 0,
             ns.castOrderUnavailable and L.DEBUG_SLOT_ORDER or L.DEBUG_CAST_ORDER, ns.castSerial or 0))
+        ns.Report("Profile " .. tostring(ns.CurrentProfile()) .. " (migration " .. tostring(ns.charDB.profileMigration)
+            .. "); identity: " .. tostring(ns.identityStatus))
     else ns.ToggleOptions() end
 end

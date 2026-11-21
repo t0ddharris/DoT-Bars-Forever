@@ -424,6 +424,11 @@ local function UpdateView(view)
         view.stackGroups = view.stackGroups or {}
         local stackIndex, tracked = ns.StackIndex(), {}
         for _, entry in ipairs(ns.OrderedEntries()) do tracked[entry.key] = true end
+        -- Groups outlive catalog entries and profile switches. Retire every stale
+        -- group, including custom spells no longer present in Entries().
+        for key in pairs(view.stackGroups) do
+            if not tracked[key] then container:SetAuraGroupEnabled("dot:" .. key, false) end
+        end
         for _, entry in ipairs(ns.Entries()) do
             local key, groupKey = entry.key, "dot:" .. entry.key
             local candidates = {includeSpellIDs = ns.SpellSet(entry), maxDuration = 86400}
@@ -451,7 +456,15 @@ local function UpdateView(view)
                 local pos = g.spells[entry.key]
                 if not pos then
                     local width, height = ns.SlotSize(g, entry.key)
-                    pos = {x = g.x, y = g.y + (g.growUp and 1 or -1) * (index - 1) * (height + g.gap), width = width, height = height}
+                    local dir, y = g.growUp and 1 or -1, g.y
+                    for _, other in ipairs(ns.OrderedEntries()) do
+                        local placed = g.spells[other.key]
+                        if placed then
+                            local nextY = placed.y + dir * (placed.height / 2 + g.gap + height / 2)
+                            if dir * nextY > dir * y then y = nextY end
+                        end
+                    end
+                    pos = {x = g.x, y = math.floor(y + .5), width = width, height = height}
                     g.spells[entry.key] = pos
                 end
                 local key = entry.key

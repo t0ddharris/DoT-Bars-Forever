@@ -2,7 +2,7 @@
 ## Title: DoT Bars Forever
 ## Notes: Active damage-over-time timers for target, target of target, and focus.
 ## Author: DoT Bars Forever contributors
-## Version: 0.2.0
+## Version: 0.3.0
 ## IconTexture: Interface\AddOns\DoTBarsForever\Media\TimerBars.tga
 ## SavedVariables: DoTBarsForeverProfiles
 ## SavedVariablesPerCharacter: DoTBarsForeverDB

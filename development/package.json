@@ -1,6 +1,6 @@
 {
-  "name": "just-dot-timer",
-  "version": "0.2.0",
+  "name": "dot-bars-forever",
+  "version": "0.3.0",
   "private": true,
   "scripts": {
     "test": "node tests/syntax.js && node tests/run-lua.js"

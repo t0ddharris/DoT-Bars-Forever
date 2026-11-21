@@ -17,10 +17,16 @@ function methods:SetWidth(w) self.width=w end
 function methods:SetHeight(h) self.height=h end
 function methods:GetWidth() return self.width end
 function methods:GetHeight() return self.height end
+function methods:GetLeft() return self.left or 100 end
+function methods:GetTop() return self.top or 900 end
+function methods:GetNormalTexture() self.normal=self.normal or Object("Texture",self); return self.normal end
 function methods:GetCenter() return self.x or 0, self.y or 0 end
 function methods:GetEffectiveScale() return 1 end
 function methods:GetFontString() self.fontString=self.fontString or Object("FontString", self); return self.fontString end
-function methods:SetPoint(...) self.points[#self.points + 1] = {...} end
+function methods:SetPoint(...)
+ local p={...};self.points[#self.points+1]=p
+ if p[1]=="TOPLEFT" and p[3]=="BOTTOMLEFT" then self.left,self.top=p[4],p[5] end
+end
 function methods:ClearAllPoints() self.points = {} end
 function methods:SetAllPoints() end
 function methods:SetShown(v) self.shown=v end
@@ -130,8 +136,15 @@ for _,name in ipairs({"SetColorTexture","SetTexCoord","SetTexture",
     "SetNormalTexture","SetHighlightTexture","SetPushedTexture","RegisterForClicks"}) do
     methods[name]=function() end
 end
+function methods:SetScale(v) self.scale=v end
+function methods:SetEnabled(v) self.enabled=v end
+function methods:SetVerticalScroll(v) self.scroll=v end
+function methods:GetVerticalScroll() return self.scroll or 0 end
+function methods:SetResizeBounds(a,b,c,d) self.bounds={a,b,c,d} end
+function methods:StartSizing(point) self.sizing=point end
+function methods:StopMovingOrSizing() self.sizing=nil end
 function CreateFrame(kind,name,parent,template)
-    local f=Object(kind,parent)
+    local f=Object(kind,parent); f.template=template
     if name then _G[name]=f end
     if template == "OptionsSliderTemplate" then f.Low=Object("FontString",f);f.High=Object("FontString",f) end
     return f
@@ -144,11 +157,15 @@ AnchorUtil={FlowDirection={Right=1,Up=2,Down=3}}
 C_XMLUtil={GetTemplateInfo=function() return {} end}
 C_AddOns={IsAddOnLoaded=function() return true end, LoadAddOn=function() end}
 C_Spell={GetSpellInfo=function(id) if id~=999999 then return {name="Spell "..id,iconID=id} end end, RequestLoadSpellData=function() end}
+local playerName,playerRealm="Tread","Realm A"
+function UnitName() return playerName end
+function GetRealmName() return playerRealm end
 function UnitClass() return "Warlock","WARLOCK" end
 function InCombatLockdown() return combat end
 function GetTime() return now end
-function GetCursorPosition() return 400,300 end
-function IsMouseButtonDown() return false end
+local pointerX,pointerY,mouseDown=400,300,false
+function GetCursorPosition() return pointerX,pointerY end
+function IsMouseButtonDown() return mouseDown end
 function MouseIsOver() return false end
 cursor=nil;popup=nil
 function GetCursorInfo() if cursor then return unpack(cursor) end end
@@ -348,11 +365,12 @@ eq(pal~=nil,true,"unslotted class DoT offered")
 pal.scripts.OnMouseDown(pal);pal.scripts.OnClick(pal,"LeftButton")
 eq(ns.OrderedEntries()[n+1].key,"immolate","clicking a class DoT fills the next slot")
 eq(ns.db.disabled.immolate,nil,"slotting enables tracking")
+local immolateY=ns.db.groups.target.spells.immolate.y
 cursor={"spell",3,"spell",348};Fire("CURSOR_CHANGED")
 local s=Slots();s[1].scripts.OnReceiveDrag(s[1])
 eq(ns.OrderedEntries()[1].key,"immolate","spellbook drop moves spell to slot 1")
 eq(cursor,nil,"spellbook spell cleared from cursor")
-eq(ns.db.groups.target.spells.immolate.y,ns.db.groups.target.y,"slot 1 is the first independent bar")
+eq(ns.db.groups.target.spells.immolate.y,immolateY,"slot reorder preserves independent position")
 Fire("CURSOR_CHANGED")
 cursor={"spell",9,"spell",172};Fire("CURSOR_CHANGED");Fire("ACTIONBAR_SLOT_CHANGED")
 s=Slots();s[3].scripts.OnMouseDown(s[3]);s[3].scripts.OnClick(s[3],"LeftButton")
@@ -398,10 +416,11 @@ ok=ns.AddCustom("66666",true);eq(ok,true,"another custom added")
 eq(ns.SetSlot("custom66666",1),true,"new spell slotted first")
 eq(tg.spells.custom66666.width,310,"new bar matches existing width")
 eq(tg.spells.custom66666.height,28,"new bar matches existing height")
+ns.ArrangeBySlots("target");ns.Apply()
 local second=ns.OrderedEntries()[2].key
 eq(tg.spells.custom66666.y-tg.spells[second].y,28+tg.gap,"bars step by their real height plus spacing")
 tg.spells.custom66666.width=150;ns.ClearSlot("custom66666");ns.SetSlot("custom66666",1)
-eq(tg.spells.custom66666.width,310,"re-slotted bar drops its stale size")
+eq(tg.spells.custom66666.width,150,"re-slotted bar preserves its saved size")
 eq(ns.InitializeDB({order={"a",5,"b"}}).order[2],"b","saved slot order sanitized")
 -- Layout handles: live-following sample bar, whole-pixel saves, top-level layering.
 local editor=ns.views.target.editors.stack or select(2,next(ns.views.target.editors))
@@ -434,6 +453,11 @@ eq(st.groups["dot:corruption"]~=nil and st.groups["dot:immolate"]~=nil,true,"one
 local function Col(b) return string.format("%.2f,%.2f,%.2f",b.color[1],b.color[2],b.color[3]) end
 eq(Col(st.groups["dot:corruption"].buttons[1].bar),"0.64,0.43,0.96","shadow DoT uses shadow color")
 eq(Col(st.groups["dot:immolate"].buttons[1].bar),"1.00,0.48,0.20","fire DoT uses fire color")
+eq(Col(st.groups["dot:siphon"].buttons[1].bar),"0.30,0.86,0.48","life drain uses drain color")
+eq(string.format("%.2f,%.2f,%.2f",ns.EntryColor(ns.EntryByKey("agony"))),"0.90,0.26,0.42","bane uses curse color")
+eq(string.format("%.2f,%.2f,%.2f",ns.EntryColor(ns.EntryByKey("doom"))),"0.90,0.26,0.42","Bane of Doom uses curse color")
+eq(ns.EntryKind({key="custom702",name="Curse of Weakness",custom=true}),"curse","custom curse recognized by name")
+eq(ns.EntryKind({key="customx",name="Something",custom=true}),nil,"unknown custom has no type")
 ns.db.spellColors.immolate={.1,.2,.3};ns.Apply()
 eq(Col(st.groups["dot:immolate"].buttons[1].bar),"0.10,0.20,0.30","per-spell override wins")
 ns.db.spellColors.immolate=nil;ns.db.colorBySchool=false;ns.db.color=2;ns.Apply()
@@ -479,14 +503,12 @@ combat=true
 eq(ns.CopyLayout("target",{"focus"}),false,"no layout copy in combat")
 combat=false
 ns.ToggleOptions()
-local bothButton;for _,f in ipairs(allFrames) do if f.text=="Both" then bothButton=f end end
-eq(bothButton~=nil,true,"copy to both button shown")
-bothButton.scripts.OnClick(bothButton)
+ns.CopyLayout("target",{"targettarget","focus"})
 eq(fo.width..","..tt.spells.corruption.width,"333,300","copy to both updates every other unit")
 ns.ToggleOptions()
 -- Profiles: class-named profile on first load; create, copy, switch, delete, reset; migration.
-eq(ns.CurrentProfile(),"Warlock","first load uses a profile named after the class")
-eq(DoTBarsForeverProfiles.profiles.Warlock,ns.db,"settings live in the profile")
+eq(ns.CurrentProfile(),"Warlock - Tread","first load uses a profile named after the class")
+eq(DoTBarsForeverProfiles.profiles["Warlock - Tread"],ns.db,"settings live in the profile")
 local warlockWidth=ns.db.groups.target.width
 eq(ns.CreateProfile("Raid",false),true,"create a profile from class defaults")
 eq(ns.CurrentProfile(),"Raid","new profile in use")
@@ -500,9 +522,9 @@ eq(DoTBarsForeverProfiles.profiles.Raid.groups.target.width,500,"copy is indepen
 local dupOk,dupMsg=ns.CreateProfile("Raid",false)
 eq(dupOk==false and dupMsg~=nil,true,"duplicate profile name refused")
 eq(ns.CreateProfile("   ",false),false,"blank profile name refused")
-eq(ns.UseProfile("Warlock"),true,"switch profile")
+eq(ns.UseProfile("Warlock - Tread"),true,"switch profile")
 eq(ns.db.groups.target.width,warlockWidth,"switching restores that profile's settings")
-eq(ns.DeleteProfile("Warlock"),false,"profile in use can't be deleted")
+eq(ns.DeleteProfile("Warlock - Tread"),false,"profile in use can't be deleted")
 ns.ToggleOptions()
 local delRow;for _,r in ipairs(ns.profileRows) do if r.name=="Raid copy" and r.shown then delRow=r end end
 delRow.delete.scripts.OnClick(delRow.delete)
@@ -516,26 +538,191 @@ eq(ns.ResetProfile(),true,"reset profile")
 eq(ns.db.groups.target.width..","..ns.db.texture,"260,Flat","reset returns to class defaults")
 eq(ns.CurrentProfile(),"Raid","reset keeps the profile")
 combat=true
-eq(ns.UseProfile("Warlock"),false,"no profile switch in combat")
+eq(ns.UseProfile("Warlock - Tread"),false,"no profile switch in combat")
 combat=false
+do
 local char,store=ns.ResolveProfiles({groups={target={width=410}},texture="Glass"},{profiles={}})
-eq(char.profile,"Warlock","pre-profile save becomes the class profile")
-eq(store.profiles.Warlock.groups.target.width..","..store.profiles.Warlock.texture,"410,Glass","old settings kept in that profile")
-eq(char.groups.target.width,410,"old settings stay as a backup in the character save")
--- A /reload before the full restart: the profile store was not saved, so it comes back
--- empty. The backup migrates again; nothing is lost.
-local again,store3=ns.ResolveProfiles(char,nil)
-eq(store3.profiles.Warlock.groups.target.width,410,"unsaved profile store: settings migrate again")
--- With the store saved, the next load does not migrate a second time.
-local count=0;for _ in pairs(store.profiles) do count=count+1 end
-ns.ResolveProfiles(char,store)
-local count2=0;for _ in pairs(store.profiles) do count2=count2+1 end
-eq(count2,count,"saved profile store: no duplicate migration")
-local char2=ns.ResolveProfiles({groups={}},{profiles={Warlock={}}})
-eq(char2.profile~="Warlock",true,"a second migrated character gets its own profile")
-ns.ResolveProfiles(DoTBarsForeverDB,DoTBarsForeverProfiles)
+eq(char.profile,"Warlock - Tread","pre-profile save gets character default")
+eq(store.profiles[char.profile].groups.target.width..","..store.profiles[char.profile].texture,"410,Glass","legacy settings preserved")
+eq(char.groups.target.width,410,"legacy backup retained")
+local again,recovered=ns.ResolveProfiles(char,nil)
+eq(recovered.profiles[again.profile].groups.target.width,410,"missing account store recovers backup")
+local account={profiles={Warlock=ns.Defaults()}}
+account.profiles.Warlock.groups.target.spells.corruption={x=111,y=222,width=333,height=44}
+local first=ns.ResolveProfiles({profile="Warlock"},account)
+eq(first.profile,"Warlock - Tread","class profile migrates to character")
+eq(account.profiles[first.profile].groups.target.spells.corruption.x,111,"migration keeps manual position")
+account.profiles[first.profile].groups.target.spells.corruption.x=999
+playerName="Second"
+local second=ns.ResolveProfiles({profile="Warlock"},account)
+eq(second.profile,"Warlock - Second","same-class alt gets separate profile")
+eq(account.profiles[second.profile].groups.target.spells.corruption.x,111,"alt starts from original source")
+eq(account.profiles.Warlock.groups.target.spells.corruption.x,111,"original class profile unchanged")
+playerName="Tread";playerRealm="Realm B"
+local collision=ns.ResolveProfiles({profile="Warlock"},account)
+eq(collision.profile,"Warlock - Tread - Realm B","same name on different realm qualified")
+playerRealm="Realm A"
+ns.ResolveProfiles(first,account)
+eq(ns.db.groups.target.spells.corruption.x,999,"repeat login keeps edits")
 ns.UseProfile("Warlock")
+ns.ResolveProfiles(first,account)
+eq(first.profile,"Warlock","explicit class-profile sharing survives login")
+local stale=ns.ResolveProfiles({profile="Warlock",profileMigration=1},account)
+eq(stale.profile,"Warlock - Tread","0.3.0 save marked migrated on class profile still migrates")
+eq(account.profiles.Warlock~=nil,true,"class profile kept after stale-flag migration")
+-- Forever can return UnitName as a secret value; another readable source still works.
+local realUnitName=UnitName
+UnitName=function() return {secret=true} end
+UnitFullName=function() return "Tread","RealmA" end
+local secretName=ns.ResolveProfiles({profile="Warlock",profileMigration=1},account)
+eq(secretName.profile,"Warlock - Tread","secret UnitName falls back to UnitFullName")
+eq(ns.identityStatus:find("UnitName=secret",1,true)~=nil,true,"debug records secret UnitName")
+UnitFullName=function() return {secret=true},{secret=true} end
+local blocked=ns.ResolveProfiles({profile="Warlock",profileMigration=1},account)
+eq(blocked.profile,"Warlock","all identity sources secret keeps class profile")
+eq(blocked.profileMigration,1,"blocked identity leaves migration pending")
+UnitName,UnitFullName=realUnitName,nil
+account.profiles.Raid=ns.Defaults()
+local custom=ns.ResolveProfiles({profile="Raid"},account)
+eq(custom.profile,"Raid","custom profile choice preserved")
+local occupied={profiles={["Warlock - Tread"]={texture="Glass"},["Warlock - Tread - Realm A"]={texture="Gloss"}}}
+local safelyNamed=ns.ResolveProfiles({},occupied)
+eq(safelyNamed.profile,"Warlock - Tread - Realm A (2)","unknown name collisions never overwritten")
+eq(occupied.profiles["Warlock - Tread"].texture,"Glass","unowned existing profile preserved")
+playerName=nil
+local late,lateStore=ns.ResolveProfiles({},nil)
+eq(late.profileMigration,nil,"identity unavailable defers migration")
+playerName="Tread"
+ns.ResolveProfiles(late,lateStore)
+eq(late.profile,"Warlock - Tread","identity ready completes migration")
+end
+ns.ResolveProfiles(DoTBarsForeverDB,DoTBarsForeverProfiles)
+ns.UseProfile("Warlock - Tread")
 ns.db.enabled=false;ns.Apply()
 eq(ns.views.target.root.shown,false,"master disable")
 eq(ns.InitializeDB({fontSize=100}).fontSize,20,"saved data sanitized")
+
+-- Regression: removed custom groups must stop tracking, including profile switches.
+ns.db.enabled=true;ns.db.groups.target.free=false
+ns.db.custom={{key="reviewcustom",name="Review custom",ids={77777},custom=true}}
+ns.Apply()
+auras.target={{id=77777,harmful=true,mine=true,name="Review custom",remaining=8}}
+ns.RefreshUnits()
+eq(ns.views.target.stack.visibleCount,1,"custom group initially active")
+ns.db.custom={};ns.Apply()
+eq(ns.views.target.stack.groups["dot:reviewcustom"].enabled,false,"removed custom group disabled")
+eq(ns.views.target.stack.visibleCount,0,"removed custom aura no longer visible")
+ns.db.custom={{key="reviewcustom",name="Review custom",ids={77777},custom=true}};ns.Apply()
+eq(ns.views.target.stack.visibleCount,1,"re-added group enabled again")
+ns.CreateProfile("Review clean",false)
+eq(ns.views.target.stack.visibleCount,0,"profile switch retires old custom groups")
+-- Manual geometry survives add/remove/reorder on every unit.
+for _,unit in ipairs(ns.units) do ns.db.groups[unit].free=true end
+ns.Apply()
+local first=ns.OrderedEntries()[1].key
+local other=ns.OrderedEntries()[2].key
+for _,unit in ipairs(ns.units) do
+    local pos=ns.db.groups[unit].spells[first]
+    pos.x,pos.y,pos.width,pos.height=987,654,333,31
+end
+ns.ClearSlot(other);ns.SetSlot(first,2);ns.SetSlot(other,1)
+for _,unit in ipairs(ns.units) do
+    local pos=ns.db.groups[unit].spells[first]
+    eq(pos.x..","..pos.y..","..pos.width..","..pos.height,"987,654,333,31","slot edits preserve "..unit)
+end
+ns.ArrangeBySlots("target");ns.Apply()
+eq(ns.db.groups.focus.spells[first].x,987,"arrange leaves other units alone")
+eq(ns.db.groups.target.spells[first].x,ns.db.groups.target.x,"explicit arrange moves selected unit")
+combat=true
+eq(ns.ArrangeBySlots("target"),false,"arrange refuses combat")
+combat=false
+-- Accepting an old reset dialog cannot reset a different profile.
+local resetButton
+for _,f in ipairs(allFrames) do if f.text==ns.L.PROFILE_RESET then resetButton=f end end
+resetButton.scripts.OnClick(resetButton)
+ns.CreateProfile("Review other",false);ns.db.groups.target.width=444
+ns.confirmFrame.accept.scripts.OnClick(ns.confirmFrame.accept)
+eq(ns.db.groups.target.width,444,"stale reset dialog preserves newly selected profile")
+resetButton.scripts.OnClick(resetButton)
+ns.confirmFrame.accept.scripts.OnClick(ns.confirmFrame.accept)
+eq(ns.db.groups.target.width,260,"unchanged reset dialog resets intended profile")
+-- Whole-window scaling: fixed geometry, saved preference and anchored drag.
+local window=DoTBarsForeverOptions
+UIParent:SetSize(640,480);ns.FitOptionsWindow()
+eq(window:GetWidth()*window.scale<=616,true,"fits narrow display width")
+eq(window:GetHeight()*window.scale<=456,true,"fits short display height")
+UIParent:SetSize(400,300);ns.FitOptionsWindow()
+eq(window:GetWidth()*window.scale<=376,true,"fits very narrow display")
+eq(window:GetHeight()*window.scale<=276,true,"fits very short display")
+UIParent:SetSize(1920,1080);ns.FitOptionsWindow()
+ns.SetOptionsScale(1.2)
+eq(window:GetWidth(),820,"scale does not stretch logical width")
+eq(window:GetHeight(),660,"scale does not stretch logical height")
+eq(ns.charDB.optionsWindow.scale,1.2,"scale saved per character")
+window:SetPoint("TOPLEFT",UIParent,"BOTTOMLEFT",100/window.scale,1000/window.scale)
+local left,top=window:GetLeft()*window.scale,window:GetTop()*window.scale
+eq(window.scripts.OnDragStart,nil,"window body cannot initiate movement during grip drag")
+eq(window.titleMover.scripts.OnDragStart~=nil,true,"title remains draggable")
+eq(window.resizeGrip.scripts.OnDragStart~=nil,true,"grip consumes drag start")
+mouseDown=true;window.resizeGrip.scripts.OnMouseDown(nil,"LeftButton")
+pointerX=pointerX+82;pointerY=pointerY-66
+window.scripts.OnUpdate(window)
+eq(math.abs(window.scale-1.3)<.00001,true,"diagonal grip scales proportionally")
+eq(math.abs(window:GetLeft()*window.scale-left)<.00001,true,"scale retains left anchor")
+eq(math.abs(window:GetTop()*window.scale-top)<.00001,true,"scale retains top anchor")
+local stableScale=window.scale
+for i=1,20 do window.scripts.OnUpdate(window) end
+eq(window.scale,stableScale,"stationary pointer cannot accumulate scale")
+eq(math.abs(window:GetLeft()*window.scale-left)<.00001,true,"repeated drag updates cannot drift")
+mouseDown=false;window.scripts.OnUpdate(window)
+eq(window.scripts.OnUpdate,nil,"release outside grip stops scaling")
+eq(window.scaleSlider,nil,"header scale slider removed")
+for _,f in ipairs(allFrames) do
+    if f.parent==window and f.template=="OptionsSliderTemplate" then error("scale slider still present") end
+end
+ns.SetOptionsScale(.9)
+eq(window.scale,.9,"saved scale controls entire window")
+UIParent:SetSize(400,300);ns.FitOptionsWindow()
+eq(ns.charDB.optionsWindow.scale,.9,"screen fit preserves preferred scale")
+UIParent:SetSize(1920,1080);ns.FitOptionsWindow()
+eq(window.scale,.9,"larger screen restores preferred scale")
+ns.SetOptionsScale(0/0);eq(window.scale,1,"invalid scale falls back safely")
+ns.optionTabs[3].scripts.OnClick(ns.optionTabs[3])
+eq(ns.optionPages[3].shown,true,"Layout tab shown")
+eq(ns.optionPages[4].shown,false,"Appearance hidden on Layout")
+ns.optionTabs[4].scripts.OnClick(ns.optionTabs[4])
+eq(ns.optionPages[4].shown,true,"Appearance tab shown")
+-- Tabs and segments are flat: no native template artwork to show on hover/press.
+for i,tab in ipairs(ns.optionTabs) do eq(tab.template,nil,"tab "..i.." has no native button template") end
+eq(ns.optionTabs[1].label.text,ns.L.NAV_TRACKING,"flat tab label text")
+-- Spell colors live on Appearance, not the Spells list.
+eq(#ns.colorChips>=5,true,"Appearance lists a color chip per DoT")
+local chipParent=ns.colorChips[1]
+while chipParent and chipParent~=ns.optionPages[4] do chipParent=chipParent.parent end
+eq(chipParent,ns.optionPages[4],"color chips belong to Appearance")
+local agonyChip
+for _,chip in ipairs(ns.colorChips) do if chip.shown and chip.entry.key=="agony" then agonyChip=chip end end
+agonyChip.scripts.OnClick(agonyChip,"LeftButton")
+eq(ns.db.spellColors.agony~=nil,true,"chip click sets a color")
+agonyChip.scripts.OnClick(agonyChip,"RightButton")
+eq(ns.db.spellColors.agony,nil,"chip right-click returns to type color")
+
+-- Tooltip SetText takes numeric alpha before the wrap flag (Forever contract).
+local tooltipText,tooltipAlpha,tooltipWrap
+GameTooltip={
+    SetOwner=function() end,
+    SetText=function(_,text,r,g,b,alpha,wrap)
+        assert(type(alpha)=="number", "tooltip alpha must be numeric")
+        assert(type(wrap)=="boolean", "tooltip wrap must be boolean")
+        tooltipText,tooltipAlpha,tooltipWrap=text,alpha,wrap
+    end,
+    Show=function() end,Hide=function() end,
+}
+window.resizeGrip.scripts.OnEnter(window.resizeGrip)
+eq(tooltipText,ns.L.RESIZE_OPTIONS,"resize grip tooltip shows help")
+eq(tooltipAlpha,1,"tooltip passes numeric alpha before wrap")
+eq(tooltipWrap,true,"resize tooltip wraps")
+window.resizeGrip.scripts.OnLeave(window.resizeGrip)
+GameTooltip=nil
+
 print("PASS: "..assertions.." assertions; all three unit bindings, filtering, custom spells, layout, textures, options.")

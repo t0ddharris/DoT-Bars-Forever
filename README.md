@@ -5,11 +5,12 @@ Clean, minimal bars for **your own damage-over-time spells** in **WoW Forever** 
 ## Features
 
 - **Class presets:** your class's DoTs are filled in automatically on first load, including all ranks. Add custom DoTs by aura ID.
-- **Spell tray:** a bar of slots; drag spells in from your spellbook or action bars. Slot order sets bar order.
+- **Spell tray:** a bar of slots; drag spells in from your spellbook or action bars. Slot edits preserve independent positions; use Arrange by slot order when you want to rearrange them.
 - **Layouts:** stacked bars (growing up or down, ordered by cast) or independently placed bars; move and resize them in layout editing; copy one unit's layout to the others.
-- **Colors:** each DoT in its spell school's color (shadow, fire, nature, arcane, frost, holy, physical), with per-spell overrides.
+- **Colors:** each DoT by type: curses/banes, life drains, then spell school (shadow, fire, nature, arcane, frost, holy, physical), with per-spell overrides on the Appearance page.
 - **Look:** seven built-in bar textures (including original Smooth, Glass and Gloss), game fonts, and any bar textures or fonts from installed SharedMedia packs.
-- **Profiles:** shared across your characters; create, copy, reset and switch.
+- **Options window:** top tabs and a lower-right grip that scales the entire window, and scale saved per character.
+- **Profiles:** separate class-character defaults (for example Warlock - Tread), with optional explicit sharing; create, copy, reset and switch.
 - Minimap button, `/dotbars` slash command, and an entry in the game's AddOns settings.
 
 ## Install
@@ -20,7 +21,7 @@ Formerly named *Just DoT Timer*: if you used it, delete the old `JustDoTTimer` f
 
 ## Status
 
-Version 0.2.0. Lua syntax checks and 185 simulated runtime checks pass. Core behavior has been verified in game on Forever (live bars, school colors, stacking and in-combat cast order); the remaining rows of the [testing checklist](docs/TESTING.md) are still pending.
+Version 0.3.0. Lua syntax and 234 simulated assertions pass. The redesigned native UI and profile migration still need fresh in-game verification; earlier 0.2.0 gameplay observations remain historical.
 
 Live bars use the client's own duration fill. Because the game locks live aura bars to addon code, effects such as Smooth Animated Bars' liquid can't be applied to them, and style changes reach a live bar when its DoT ends ([details](docs/GUIDE.md)).
 

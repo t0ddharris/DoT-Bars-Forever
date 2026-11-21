@@ -44,9 +44,13 @@ ns.dotSchools = {
     fireball = "fire", pyro = "fire", frostfire = "frost",
     rupture = "physical", garrote = "physical", flame = "fire", rend = "physical",
 }
+-- What a DoT does comes ahead of its school: curses and banes share one color, life
+-- drains another. Custom spells named "Curse of ..." or "Bane of ..." count as curses.
+ns.dotKinds = {agony = "curse", doom = "curse", siphon = "drain", plague = "drain"}
 ns.schoolColors = {
     physical = {.86, .30, .27}, holy = {1, .84, .42}, fire = {1, .48, .20}, nature = {.42, .80, .32},
     frost = {.42, .76, 1}, shadow = {.64, .43, .96}, arcane = {.92, .55, 1},
+    curse = {.90, .26, .42}, drain = {.30, .86, .48},
 }
 
 ns.units = {"target", "targettarget", "focus"}

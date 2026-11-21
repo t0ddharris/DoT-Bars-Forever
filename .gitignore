@@ -10,6 +10,9 @@ development/sab-issue-draft.md
 development/scripts/witchcraft-call.mjs
 docs/SESSION-HANDOFF.md
 docs/WITCHCRAFT.md
+docs/CLAUDE-HANDOFF.md
 
 # Built packages are published as GitHub releases, not committed
 releases/
+development/installed-backups/
+docs/OPTIONS-REDESIGN-HANDOFF.md
